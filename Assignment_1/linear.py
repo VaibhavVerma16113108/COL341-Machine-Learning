@@ -54,7 +54,6 @@ def k_folds_cross_validation(X, y, k, lambda_):
     """
     optimal_lambda = lambda_[0]
     min_error = sys.maxsize
-    optimal_weights = None
     test_set_size = X.shape[0] // k
 
     for reg_param in lambda_:
@@ -67,13 +66,11 @@ def k_folds_cross_validation(X, y, k, lambda_):
             # Predict the labels
             y_pred = X_test.dot(weights)
             # Calculate the error
-            error += np.sum(np.square(y_pred - y_test))
-        error //= test_set_size
+            error += np.sum(np.square(y_pred - y_test)) / np.sum(np.square(y_test))
         if error < min_error:
             min_error = error
             optimal_lambda = reg_param
-            optimal_weights = weights
-    return optimal_lambda, optimal_weights
+    return optimal_lambda
 
 
 def predict(test_file, weights):
@@ -84,14 +81,33 @@ def predict(test_file, weights):
     data.drop("Unnamed: 0", inplace=True, axis=1)
     all_ones = [1 for _ in range(data.shape[0])]
     data.insert(loc=0, column="Ones", value=all_ones)
-
     X_test = data.to_numpy()
     y_pred = X_test.dot(weights)
 
     return y_pred
 
 
-def write_array_to_file(arr, filename, write_mode="Array"):
+def predict_2(train_file, weights):
+    """
+    This function predicts the output for the train dataset.
+    """
+    X_train, y_train = preprocess_dataset(train_file)
+    y_pred = X_train.dot(weights)
+
+    return y_pred
+
+
+def r_score(y_test, y_pred):
+    """
+    This function returns the R-squared value.
+    """
+    mean_y = np.mean(y_test)
+    numerator = np.sum((y_test - y_pred) ** 2)
+    denominator = np.sum((y_test - mean_y) ** 2)
+    return 1 - (numerator / denominator)
+
+
+def write_to_file(arr, filename, write_mode="Array"):
     """
     Create a new file and write a numpy array/scalar to it.
     If write_mode is 'Array', then the array is saved as a line break-delimited file.
@@ -115,8 +131,9 @@ if __name__ == "__main__":
         X_train, y_train = preprocess_dataset(train_data_file)
         weights = normal_equation(X_train, y_train)
         predictions = predict(test_data_file, weights)
-        write_array_to_file(predictions, output_file)
-        write_array_to_file(weights, weight_file)
+        # print(r_score(predict_2(train_data_file, weights), y_train))
+        write_to_file(predictions, output_file)
+        write_to_file(weights, weight_file)
 
     elif mode == "b":
         regularization_file, output_file, weight_file, best_param_file = (
@@ -127,13 +144,13 @@ if __name__ == "__main__":
         )
         lambda_ = [float(i) for i in open(regularization_file).readlines()]
         X_train, y_train = preprocess_dataset(train_data_file)
-        optimal_lambda, optimal_weights = k_folds_cross_validation(
-            X_train, y_train, 10, lambda_
-        )
+        optimal_lambda = k_folds_cross_validation(X_train, y_train, 10, lambda_)
+        optimal_weights = ridge_regression(X_train, y_train, optimal_lambda)
         predictions = predict(test_data_file, optimal_weights)
-        write_array_to_file(predictions, output_file)
-        write_array_to_file(optimal_weights, weight_file)
-        write_array_to_file(optimal_lambda, best_param_file, write_mode="Scalar")
+        # print(r_score(predict_2(train_data_file, optimal_weights), y_train))
+        write_to_file(predictions, output_file)
+        write_to_file(optimal_weights, weight_file)
+        write_to_file(optimal_lambda, best_param_file, write_mode="Scalar")
 
     elif mode == "c":
         output_file = sys.argv[4]
