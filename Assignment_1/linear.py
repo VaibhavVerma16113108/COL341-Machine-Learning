@@ -2,17 +2,47 @@ import numpy as np
 import scipy as sp
 import pandas as pd
 import sys
+from sklearn import preprocessing
+
+FEATURES = [
+    "APR Medical Surgical Description",
+    "Health Service Area APR Medical Surgical Description",
+    "Hospital County APR DRG Code",
+    "Operating Certificate Number Length of Stay",
+    "Operating Certificate Number CCS Diagnosis Code",
+    "Operating Certificate Number APR Medical Surgical Description",
+    "Facility Name Length of Stay",
+    "Gender APR Medical Surgical Description",
+    "Length of Stay^2",
+    "Length of Stay Type of Admission",
+    "Length of Stay CCS Diagnosis Code",
+    "Length of Stay APR DRG Code",
+    "Length of Stay APR Severity of Illness Code",
+    "Length of Stay APR Medical Surgical Description",
+    "CCS Diagnosis Code APR DRG Code",
+    "CCS Diagnosis Code APR MDC Code",
+    "CCS Diagnosis Code APR MDC Description",
+    "CCS Diagnosis Code APR Severity of Illness Description",
+    "CCS Diagnosis Code APR Risk of Mortality",
+    "APR DRG Code APR Risk of Mortality",
+    "APR DRG Code APR Medical Surgical Description",
+    "APR MDC Description Emergency Department Indicator",
+    "APR Severity of Illness Code APR Medical Surgical Description",
+    "Emergency Department Indicator^2",
+]
 
 
-def preprocess_dataset(dataset_file):
+def preprocess_dataset(dataset_file, type="train"):
     data = pd.read_csv(dataset_file)
     data.drop("Unnamed: 0", inplace=True, axis=1)
     all_ones = [1 for _ in range(data.shape[0])]
     data.insert(loc=0, column="Ones", value=all_ones)
 
-    X, y = data.iloc[:, : data.shape[1] - 1], data.iloc[:, -1:]
-    X, y = X.to_numpy(), y.to_numpy()
-    return X, y
+    if type == "train":
+        X, y = data.iloc[:, : data.shape[1] - 1], data.iloc[:, -1:]
+        return X, y
+    else:
+        return data
 
 
 def normal_equation(X, y):
@@ -54,7 +84,6 @@ def k_folds_cross_validation(X, y, k, lambda_):
     """
     optimal_lambda = lambda_[0]
     min_error = sys.maxsize
-    test_set_size = X.shape[0] // k
 
     for reg_param in lambda_:
         error = 0
@@ -73,14 +102,29 @@ def k_folds_cross_validation(X, y, k, lambda_):
     return optimal_lambda
 
 
-def predict(test_file, weights):
+def extract_features(X, features=FEATURES):
+    X.drop("Birth Weight", axis=1, inplace=True)
+    ENCODING_THRESHOLD = 10
+    columns_to_encode = [
+        col for col in X.columns if len(X[col].unique()) <= ENCODING_THRESHOLD
+    ]
+    poly = preprocessing.PolynomialFeatures(degree=2, include_bias=False)
+    X_poly = poly.fit_transform(X)
+    X_expanded = pd.DataFrame(
+        X_poly, columns=poly.get_feature_names(input_features=X.columns)
+    )
+    X_expanded = X_expanded[features]
+    return X_expanded
+
+
+def predict(test_file, weights, features=None):
     """
     This function predicts the output for the test dataset.
     """
-    data = pd.read_csv(test_file)
-    data.drop("Unnamed: 0", inplace=True, axis=1)
-    all_ones = [1 for _ in range(data.shape[0])]
-    data.insert(loc=0, column="Ones", value=all_ones)
+    data = preprocess_dataset(test_file, type="test")
+    if features is not None:
+        data = extract_features(data)
+        data = data.loc[:, features]
     X_test = data.to_numpy()
     y_pred = X_test.dot(weights)
 
@@ -129,9 +173,9 @@ if __name__ == "__main__":
     if mode == "a":
         output_file, weight_file = sys.argv[4], sys.argv[5]
         X_train, y_train = preprocess_dataset(train_data_file)
+        X_train, y_train = X_train.to_numpy(), y_train.to_numpy()
         weights = normal_equation(X_train, y_train)
         predictions = predict(test_data_file, weights)
-        # print(r_score(predict_2(train_data_file, weights), y_train))
         write_to_file(predictions, output_file)
         write_to_file(weights, weight_file)
 
@@ -142,15 +186,20 @@ if __name__ == "__main__":
             sys.argv[6],
             sys.argv[7],
         )
-        lambda_ = [float(i) for i in open(regularization_file).readlines()]
+        lambda_ = np.loadtxt(regularization_file, delimiter=",")
         X_train, y_train = preprocess_dataset(train_data_file)
+        X_train, y_train = X_train.to_numpy(), y_train.to_numpy()
         optimal_lambda = k_folds_cross_validation(X_train, y_train, 10, lambda_)
         optimal_weights = ridge_regression(X_train, y_train, optimal_lambda)
         predictions = predict(test_data_file, optimal_weights)
-        # print(r_score(predict_2(train_data_file, optimal_weights), y_train))
         write_to_file(predictions, output_file)
         write_to_file(optimal_weights, weight_file)
         write_to_file(optimal_lambda, best_param_file, write_mode="Scalar")
 
     elif mode == "c":
         output_file = sys.argv[4]
+        X_train, y_train = preprocess_dataset(train_data_file)
+        X_train = extract_features(X_train).to_numpy()
+        weights = normal_equation(X_train, y_train)
+        predictions = predict(test_data_file, weights, features=FEATURES)
+        write_to_file(predictions, output_file)
