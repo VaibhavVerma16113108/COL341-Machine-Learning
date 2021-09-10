@@ -5,30 +5,63 @@ import sys
 from sklearn import preprocessing
 
 FEATURES = [
-    "APR Medical Surgical Description",
+    "APR MDC Description",
+    "Ones Ethnicity",
+    "Health Service Area Length of Stay",
+    "Health Service Area APR MDC Description",
     "Health Service Area APR Medical Surgical Description",
-    "Hospital County APR DRG Code",
+    "Hospital County^2",
+    "Hospital County Zip Code - 3 digits",
+    "Hospital County Length of Stay",
+    "Hospital County APR MDC Description",
+    "Operating Certificate Number Zip Code - 3 digits",
     "Operating Certificate Number Length of Stay",
-    "Operating Certificate Number CCS Diagnosis Code",
+    "Operating Certificate Number APR MDC Description",
     "Operating Certificate Number APR Medical Surgical Description",
+    "Facility Id APR MDC Description",
+    "Facility Id APR Severity of Illness Description",
     "Facility Name Length of Stay",
+    "Facility Name APR MDC Description",
+    "Age Group Length of Stay",
+    "Age Group APR Severity of Illness Description",
+    "Age Group APR Risk of Mortality",
+    "Zip Code - 3 digits APR MDC Description",
+    "Gender APR MDC Description",
+    "Gender APR Severity of Illness Code",
     "Gender APR Medical Surgical Description",
+    "Race APR MDC Description",
+    "Race APR Medical Surgical Description",
+    "Ethnicity APR MDC Description",
     "Length of Stay^2",
     "Length of Stay Type of Admission",
-    "Length of Stay CCS Diagnosis Code",
-    "Length of Stay APR DRG Code",
+    "Length of Stay CCS Diagnosis Description",
+    "Length of Stay APR MDC Description",
     "Length of Stay APR Severity of Illness Code",
+    "Length of Stay APR Severity of Illness Description",
+    "Length of Stay APR Risk of Mortality",
     "Length of Stay APR Medical Surgical Description",
-    "CCS Diagnosis Code APR DRG Code",
-    "CCS Diagnosis Code APR MDC Code",
-    "CCS Diagnosis Code APR MDC Description",
-    "CCS Diagnosis Code APR Severity of Illness Description",
-    "CCS Diagnosis Code APR Risk of Mortality",
-    "APR DRG Code APR Risk of Mortality",
-    "APR DRG Code APR Medical Surgical Description",
+    "Length of Stay Emergency Department Indicator",
+    "Type of Admission APR MDC Description",
+    "Patient Disposition APR MDC Description",
+    "Patient Disposition APR Severity of Illness Description",
+    "CCS Procedure Description APR MDC Description",
+    "APR DRG Description APR Medical Surgical Description",
+    "APR MDC Description^2",
+    "APR MDC Description APR Severity of Illness Code",
+    "APR MDC Description APR Risk of Mortality",
+    "APR MDC Description APR Medical Surgical Description",
+    "APR MDC Description Payment Typology 1",
+    "APR MDC Description Payment Typology 2",
+    "APR MDC Description Payment Typology 3",
     "APR MDC Description Emergency Department Indicator",
     "APR Severity of Illness Code APR Medical Surgical Description",
-    "Emergency Department Indicator^2",
+    "APR Severity of Illness Code Payment Typology 2",
+    "APR Risk of Mortality^2",
+    "APR Medical Surgical Description^2",
+    "APR Medical Surgical Description Payment Typology 1",
+    "APR Medical Surgical Description Payment Typology 2",
+    "APR Medical Surgical Description Payment Typology 3",
+    "APR Medical Surgical Description Emergency Department Indicator",
 ]
 
 
@@ -103,11 +136,18 @@ def k_folds_cross_validation(X, y, k, lambda_):
 
 
 def extract_features(X, features=FEATURES):
-    X.drop("Birth Weight", axis=1, inplace=True)
-    ENCODING_THRESHOLD = 10
-    columns_to_encode = [
-        col for col in X.columns if len(X[col].unique()) <= ENCODING_THRESHOLD
+    cols = [
+        "Birth Weight",
+        "APR MDC Code",
+        "CCS Diagnosis Code",
+        "CCS Procedure Code",
+        "APR DRG Code",
     ]
+    X.drop(cols, axis=1, inplace=True)
+    # ENCODING_THRESHOLD = 10
+    # columns_to_encode = [
+    #     col for col in X.columns if len(X[col].unique()) <= ENCODING_THRESHOLD
+    # ]
     poly = preprocessing.PolynomialFeatures(degree=2, include_bias=False)
     X_poly = poly.fit_transform(X)
     X_expanded = pd.DataFrame(

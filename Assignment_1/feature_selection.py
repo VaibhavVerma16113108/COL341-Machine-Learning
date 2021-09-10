@@ -56,14 +56,17 @@ def one_hot_encode(X, encoding_threshold=15):
 
 def drop_features(X, y, threshold=0.01):
     """
-    Drop features with a missing rate above threshold
+    Drop specified features
     :param X: Training set
     :param y: Target
-    :param threshold: Missing rate threshold
+    :param threshold: Correlation threshold
     :return: X with dropped features
     """
-    cols = [col for col in X.columns if abs(X[col].corr(y["Total Costs"])) < threshold]
-    cols += [
+    # Drop features whose correlation with target is below threshold
+    # cols = [col for col in X.columns if abs(X[col].corr(y["Total Costs"])) < threshold]
+
+    # Drop 'Birth Weight' as it has a lot of missing values. Drop repeated features.
+    cols = [
         "Birth Weight",
         "APR MDC Code",
         "CCS Diagnosis Code",
@@ -73,26 +76,42 @@ def drop_features(X, y, threshold=0.01):
     X.drop(cols, axis=1, inplace=True)
 
 
-def cross_validation(X, y, lambda_):
-    """
-    Returns the best regularization parameter using cross-validation.
-    """
-    optimal_alpha = 0
-    best_r_score = 0
-    kf = KFold(n_splits=10, shuffle=True, random_state=42)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.1, shuffle=False
+def train_test_split(X, y, k, i):
+    n = X.shape[0]  # number of training examples
+    X_train, X_test, y_train, y_test = (
+        np.concatenate((X[: i * n // k], X[(i + 1) * n // k :])),
+        X[i * n // k : (i + 1) * n // k],
+        np.concatenate((y[: i * n // k], y[(i + 1) * n // k :])),
+        y[i * n // k : (i + 1) * n // k],
     )
-    for alpha in lambda_:
-        r_score = 0
-        for train_index, test_index in kf.split(X_train):
-            X_train_cv, X_test_cv = X_train.loc[train_index], X_train.loc[test_index]
-            y_train_cv, y_test_cv = y_train.loc[train_index], y_train.loc[test_index]
-            lr = linear_model.LassoLars(alpha=alpha, max_iter=1000)
-            lr.fit(X_train_cv, y_train_cv)
-            r_score += lr.score(X_test_cv, y_test_cv)
-        r_score /= 10
-        if r_score > best_r_score:
-            best_r_score = r_score
-            optimal_alpha = alpha
-    return optimal_alpha
+    return X_train, X_test, y_train, y_test
+
+
+def k_folds_cross_validation(X, y, k, lambda_):
+    """
+    This function performs k-fold cross validation on the entire training set and returns optimal value of regularization parameter.
+    X: Training examples
+    y: labels
+    k: number of folds
+    lambda_: List of possible regularization parameters
+    """
+    optimal_lambda = 0
+    best_r_score = 0
+
+    for reg_param in lambda_:
+        curr_r_score = 0
+        for iteration in range(k):
+            # Split the data into k folds
+            X_train, X_test, y_train, y_test = train_test_split(X, y, k, iteration)
+            print("Split done...")
+            # Fit the model
+            lasso = linear_model.LassoLars(alpha=reg_param, max_iter=100)
+            lasso.fit(X_train, y_train)
+            # Predict the labels
+            curr_r_score += lasso.score(X_test, y_test)
+        curr_r_score /= k
+        if curr_r_score > best_r_score:
+            best_r_score = curr_r_score
+            optimal_lambda = reg_param
+        print("r score: ", curr_r_score, " and lambda: ", reg_param)
+    return optimal_lambda, best_r_score
