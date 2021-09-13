@@ -1,6 +1,0 @@
-*.ipynb
-.DS_Store
-*.txt
-grade_a.py
-grade_b.py
-data/
