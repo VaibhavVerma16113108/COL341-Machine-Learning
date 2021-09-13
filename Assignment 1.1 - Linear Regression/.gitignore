@@ -1,0 +1,8 @@
+*.ipynb
+.DS_Store
+*.txt
+grade_a.py
+grade_b.py
+grade_c.py
+data/
+Assignment 1.1 - Linear Regression/~/Library
