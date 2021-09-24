@@ -1,0 +1,6 @@
+data/
+testcases/
+*.ipynb
+grade_*.py
+read_and_encode.py
+unique.txt
